@@ -20,9 +20,6 @@ router = APIRouter()
 )
 def dish_list(db: Session = Depends(get_db)):
     dishs = db.query(Dish).all()
-    # if not dishs:
-        # raise HTTPException(status_code=404, detail='Not Found')
-
     return dishs
 
 
@@ -65,7 +62,7 @@ def dish_update(dish_id: int, dish_data: DishCreate, db: Session = Depends(get_d
     dish_to_change = db.get(Dish, dish_id)
     if not dish_to_change:
         # должен быть статус код 404, но в тестах проверка на 200
-        raise HTTPException(status_code=200, detail="menu not found")
+        raise HTTPException(status_code=404, detail="menu not found")
     dish_to_change.title = dish_data.title
     dish_to_change.description = dish_data.description
     dish_to_change.price = dish_data.price
@@ -73,8 +70,7 @@ def dish_update(dish_id: int, dish_data: DishCreate, db: Session = Depends(get_d
     db.commit()
     db.refresh(dish_to_change)
     return {"id": str(dish_to_change.id), "title": dish_to_change.title,
-            "description": dish_to_change.description, "price": dish_to_change.price,
-            "dishes_count": 0}
+            "description": dish_to_change.description, "price": dish_to_change.price}
 
 
 @router.delete(

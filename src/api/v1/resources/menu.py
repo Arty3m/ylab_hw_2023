@@ -5,7 +5,7 @@ import src.models.menu
 from src.db import get_db
 from sqlalchemy.orm import Session
 from src.models.menu import Menu, SubMenu, Dish
-from src.api.v1.schemas.menu import MenuBase, MenuCreate, MenuModel
+from src.api.v1.schemas.menu import MenuBase, MenuCreate, MenuCreated
 
 ###
 
@@ -19,8 +19,15 @@ router = APIRouter()
     status_code=200,
 )
 def menu_list(db: Session = Depends(get_db)):
-    ms = db.query(Menu).all()
-    return ms
+    menus = db.query(Menu).all()
+    m_list: list = []
+    for menu in menus:
+        count_submenus = get_count_submenus(db, menu.id)
+        count_dishes = get_count_dishes(db, menu.id)
+        m_list.append(
+            {"id": menu.id, "title": menu.title, "description": menu.description, "count_submenus": count_submenus,
+             "count_dishes": count_dishes})
+    return m_list
 
 
 @router.get(
@@ -31,12 +38,8 @@ def menu_list(db: Session = Depends(get_db)):
 )
 def menu_detail(menu_id: int, db: Session = Depends(get_db)):
     ms = db.query(Menu).filter(Menu.id == menu_id).first()
-    count_submenus = db.query(SubMenu).filter(SubMenu.owner == menu_id).count()
-    cur_id = tm.id if (tm := db.query(SubMenu).filter(SubMenu.owner == menu_id).first()) else -1
-    if cur_id != -1:
-        count_dishes = db.query(Dish).filter(Dish.owner == cur_id).count()
-    else:
-        count_dishes = 0
+    count_submenus = get_count_submenus(db, menu_id)
+    count_dishes = get_count_dishes(db, menu_id)
     if not ms:
         # status_code должен быть 404, но тесты на 200
         raise HTTPException(status_code=404, detail="menu not found")
@@ -57,10 +60,15 @@ def menu(m: MenuBase, menu_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=200, detail="menu not found")
     to_change_menu.title = m.title
     to_change_menu.description = m.description
+    count_submenus = get_count_submenus(db, menu_id)
+    count_dishes = get_count_dishes(db, menu_id)
     db.add(to_change_menu)
     db.commit()
     db.refresh(to_change_menu)
-    return to_change_menu
+
+    return {"id": str(to_change_menu.id), "title": to_change_menu.title, "description": to_change_menu.description,
+            "submenus_count": count_submenus,
+            "dishes_count": count_dishes}
 
 
 @router.post(
@@ -74,7 +82,8 @@ def menu(m: MenuCreate, db: Session = Depends(get_db)):
     db.add(new_menu)
     db.commit()
     db.refresh(new_menu)
-    return {"id": str(new_menu.id), "title": new_menu.title, "description": new_menu.description}
+    return {"id": str(new_menu.id), "title": new_menu.title, "description": new_menu.description, "submenus_count": 0,
+            "dishes_count": 0}
 
 
 @router.delete(
@@ -88,3 +97,16 @@ def menu_delete(menu_id, db: Session = Depends(get_db)):
     db.delete(to_del)
     db.commit()
     return {"status": "true", "message": "The menu has been deleted"}
+
+
+def get_count_submenus(db, menu_id):
+    return db.query(SubMenu).filter(SubMenu.owner == menu_id).count()
+
+
+def get_count_dishes(db, menu_id):
+    sbmenu_id = tm.id if (tm := db.query(SubMenu).filter(SubMenu.owner == menu_id).first()) else -1
+    if sbmenu_id != -1:
+        count_dishes = db.query(Dish).filter(Dish.owner == sbmenu_id).count()
+    else:
+        count_dishes = 0
+    return count_dishes

@@ -21,6 +21,10 @@ class MenuCreate(MenuBase):
 class MenuModel(MenuBase):
     id: str
 
+
+class MenuCreated(MenuModel):
+    count_submenus: int
+    count_dishes: int
 # class PostModel(PostBase):
 #     id: int
 #     created_at: datetime
