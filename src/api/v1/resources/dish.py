@@ -44,7 +44,9 @@ def dish_detail(dish_id: int, db: Session = Depends(get_db)):
     status_code=201,
 )
 def dish(submenu_id: int, dish_data: DishCreate, db: Session = Depends(get_db)):
-    new_dish = Dish(title=dish_data.title, description=dish_data.description, price=dish_data.price, owner=submenu_id)
+    price = dish_data.price[:-1] if len(dish_data.price) - dish_data.price.find('.') != 3 else dish_data.price
+
+    new_dish = Dish(title=dish_data.title, description=dish_data.description, price=price, owner=submenu_id)
     db.add(new_dish)
     db.commit()
     db.refresh(new_dish)
